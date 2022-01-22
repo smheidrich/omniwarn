@@ -87,7 +87,7 @@ if [ ! -e /tmp/printed_warning ]; then
   echo done > /tmp/printed_warning
 fi
 # run desired program
-"$actual" "\$@"
+PATH="$actual_dir":"\$PATH" "$(basename "$actual")" "\$@"
 HEREDOC
 
   # copy permissions and ownership
