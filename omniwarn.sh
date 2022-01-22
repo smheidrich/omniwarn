@@ -1,8 +1,11 @@
 #!/bin/bash
 
+self="$(basename "$0")"
+counter_file="/tmp/n_replaced_executables"
+
 print_help() {
   cat <<HEREDOC
-Usage: $(basename "$0") <command> [arguments...]
+Usage: $self <command> [arguments...]
 
 Extreme hackjob to make a Docker image print warnings with (almost) any use.
 
@@ -39,9 +42,14 @@ HEREDOC
 }
 
 
+log() {
+  echo "$self: $*"
+}
+
+
 ensure_in_docker() {
   if [ ! -e /.dockerenv ]; then
-    echo "Error: Refusing to run command '$1' outside of a Docker container"\
+    log "Error: Refusing to run command '$1' outside of a Docker container"\
       "as doing so would mess up your system." 1>&2
     echo "You're welcome." 1>&2
     exit 1
@@ -53,25 +61,37 @@ replace_all() {
   # disarm
   echo "disarmed while replacing executables" > /tmp/printed_warning
 
-  find / -type f -executable -writable -readable \
-    \( '!' \( \
-      -name "*.so" -or \
-      -path "/proc/*" -or \
-      -path "/sys/*" -or \
-      -name "$(basename $0)" -or \
-      -path "/actual_executables/*" \
-    \) \) \
+  find / \
+    \( \
+      \( \
+        -path "/dev" -o \
+        -path "/proc" -o \
+        -path "/sys" -o \
+        -path "/actual_executables" \
+      \) \
+      -prune \
+    \) \
+    -o \
+    -type f -executable -writable -readable \
+    \( \
+      '!' \
+      \( \
+        -name "*.so" -o \
+        -name "$self" \
+      \) \
+    \) \
     -print0 > executable_list
 
   cat executable_list | xargs -0 -I '{}' "$0" replace '{}'
+  log "Replaced $(<"$counter_file") executables."
 
   if [ ! -e /etc/omniwarn/warning ]; then
     if [ -e warning ]; then
       mkdir -p /etc/omniwarn
       cp warning /etc/omniwarn/warning
     else
-      echo "Warning: No file containing warning message found." 1>&2
-      echo "You should probably write one into either one of:" 1>&2
+      log "Warning: No file containing warning message found." 1>&2
+      echo "Expecting either one of:" 1>&2
       echo "- ./warning (will be copied to /etc/omniwarn/warning" 1>&2
       echo "- /etc/omniwarn/warning" 1>&2
     fi
@@ -84,7 +104,7 @@ replace_all() {
 
 replace() {
   if [ -z "$1" ]; then
-    echo "Error: You must specify a path of an executable to replace." 1>&2
+    log "Error: Need a path of an executable to replace." 1>&2
     return 1
   fi
 
@@ -131,6 +151,15 @@ HEREDOC
   mv "$1" "$actual"
   hash -r # reset program lookup cache so PATH hack from above works for this mv
   mv "$tmpfile" "$1"
+
+  # counter for logs
+  if [ ! -e "$counter_file" ]; then
+    echo -n 1 > "$counter_file"
+  else
+    count="$(<"$counter_file")"
+    ((count++));
+    echo -n "$count" > "$counter_file"
+  fi
 }
 
 
@@ -164,8 +193,8 @@ case $cmd in
       revert_all "$@"
       ;;
     *)
-      echo "Error: Invalid command '$cmd'. Valid commands are:"
-      echo
-      print_commands
+      log "Error: Invalid command '$cmd'. Valid commands are:" 1>&2
+      echo 1>&2
+      print_commands 1>&2
       exit 1
 esac
