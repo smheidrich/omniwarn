@@ -1,13 +1,5 @@
 #!/bin/bash
 
-print_commands() {
-  cat <<HEREDOC
-replace     - Replace single executable with a warning-printing wrapper
-replace-all - Replace (almost) all executables on the system
-revert-all  - Undo all replacements
-HEREDOC
-}
-
 print_help() {
   cat <<HEREDOC
 Usage: $(basename "$0") <command> [arguments...]
@@ -28,10 +20,20 @@ HEREDOC
 }
 
 
+print_commands() {
+  cat <<HEREDOC
+replace     - Replace single executable with a warning-printing wrapper
+replace-all - Replace (almost) all executables on the system
+revert-all  - Undo all replacements
+HEREDOC
+}
+
+
 ensure_in_docker() {
   if [ ! -e /.dockerenv ]; then
-    echo -n "Refusing to run outside of a Docker container as this would've"\
-    "messed up your system. You're welcome." 1>&2
+    echo "Error: Refusing to run command '$1' outside of a Docker container"\
+      "as doing so would mess up your system." 1>&2
+    echo "You're welcome." 1>&2
     exit 1
   fi
 }
@@ -55,6 +57,13 @@ replace_all() {
 
 
 replace() {
+  if [ -z "$1" ]; then
+    echo "Error: You must specify a path of an executable to replace." 1>&2
+    return 1
+  fi
+
+  set -e
+
   mkdir -p /actual_executables
 
   # we'll put all executables in their own folders so we can add the folder of
@@ -124,11 +133,11 @@ case $cmd in
       replace "$@"
       ;;
     replace-all)
-      ensure_in_docker
+      ensure_in_docker "$cmd"
       replace_all "$@"
       ;;
     revert-all)
-      ensure_in_docker
+      ensure_in_docker "$cmd"
       revert_all "$@"
       ;;
     *)
