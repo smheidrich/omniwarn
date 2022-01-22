@@ -13,6 +13,16 @@ actually important.
 Works by replacing almost every single executable in the image with a wrapper
 that prints a warning, then executes the original executable.
 
+Example usage in Dockerfile, after writing your desired warning message into a
+file named "warning":
+
+  COPY omniwarn.sh warning ./
+  RUN ./omniwarn.sh replace-all
+
+Putting this at the end of your Dockerfile will build an image that prints your
+warning message to stderr no matter which program is launched.
+
+
 Commands:
 
 HEREDOC
@@ -45,11 +55,27 @@ replace_all() {
 
   find / -type f -executable -writable -readable \
     \( '!' \( \
-      -name "*.so" -or -path "$PWD/*" -or -path "/actual_executables/*" \
+      -name "*.so" -or \
+      -path "/proc/*" -or \
+      -path "/sys/*" -or \
+      -name "$(basename $0)" -or \
+      -path "/actual_executables/*" \
     \) \) \
     -print0 > executable_list
 
   cat executable_list | xargs -0 -I '{}' "$0" replace '{}'
+
+  if [ ! -e /etc/omniwarn/warning ]; then
+    if [ -e warning ]; then
+      mkdir -p /etc/omniwarn
+      cp warning /etc/omniwarn/warning
+    else
+      echo "Warning: No file containing warning message found." 1>&2
+      echo "You should probably write one into either one of:" 1>&2
+      echo "- ./warning (will be copied to /etc/omniwarn/warning" 1>&2
+      echo "- /etc/omniwarn/warning" 1>&2
+    fi
+  fi
 
   # re-arm
   rm -f /tmp/printed_warning
@@ -87,12 +113,9 @@ replace() {
   tmpfile="$(mktemp)"
   cat > "$tmpfile" <<HEREDOC
 #!$shebang_path
-# print warning
+# print warning if first program execution
 if [ ! -e /tmp/printed_warning ]; then
-  echo "WARNING: You are using a DEPRECATED Docker image that is not being"\\
-    "updated with security patches." 1>&2
-  echo "See https://github.com/smheidrich/docker-debian-git-sshd for more"\\
-    "information." 1>&2
+  echo "\$(</etc/omniwarn/warning)"
   echo done > /tmp/printed_warning
 fi
 # run desired program
@@ -104,7 +127,7 @@ HEREDOC
   chown --reference="$1" "$tmpfile"
 
   # replace
-  echo "$1 -> $actual"
+  #echo "$1 -> $actual" # TODO allow printing this in verbose mode
   mv "$1" "$actual"
   hash -r # reset program lookup cache so PATH hack from above works for this mv
   mv "$tmpfile" "$1"
