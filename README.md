@@ -49,4 +49,6 @@ revert-all  - Undo all replacements
 
 ## License
 
-MIT License, see LICENSE.md
+*Unlicense* (basically equivalent to public domain plus no-warranty disclaimer)
+so you can add the script to repositories containing deprecated Dockerfiles
+without having to worry about including anything else. See `LICENSE.md`.
