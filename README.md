@@ -38,7 +38,7 @@ file named "warning":
   RUN ./omniwarn.sh replace-all
 
 Putting this at the end of your Dockerfile will build an image that prints your
-warning message to stderr no matter which program is launched.
+warning message to stderr the first time any program is launched.
 
 
 Commands:
