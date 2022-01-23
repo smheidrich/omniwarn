@@ -73,10 +73,6 @@ setup_invariants() {
 
 
 replace_all() {
-  setup_invariants
-  export PATH="$invariants_dir:$PATH"
-  hash -r # reset program lookup cache
-
   # disarm
   echo "disarmed while replacing executables" > /tmp/printed_warning
 
@@ -86,6 +82,10 @@ replace_all() {
       "then try again." 2>&1
     return 1
   fi
+
+  setup_invariants
+  export PATH="$invariants_dir:$PATH"
+  hash -r # reset program lookup cache
 
   find / \
     \( \
