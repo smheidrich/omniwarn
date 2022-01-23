@@ -35,7 +35,6 @@ HEREDOC
 
 print_commands() {
   cat <<HEREDOC
-replace     - Replace single executable with a warning-printing wrapper
 replace-all - Replace (almost) all executables on the system
 revert-all  - Undo all replacements
 HEREDOC
@@ -61,6 +60,13 @@ replace_all() {
   # disarm
   echo "disarmed while replacing executables" > /tmp/printed_warning
 
+  if [ -e "/actual_executables" ]; then
+    log "Error: Replacing executables repeatedly is not supported." 2>&1
+    echo "Please first revert the current replacements using revert-all,"\
+      "then try again." 2>&1
+    return 1
+  fi
+
   find / \
     \( \
       \( \
@@ -80,9 +86,9 @@ replace_all() {
         -name "$self" \
       \) \
     \) \
-    -print0 > executable_list
+    -print0 > /tmp/executable_list
 
-  cat executable_list | xargs -0 -I '{}' "$0" replace '{}'
+  cat /tmp/executable_list | xargs -0 -I '{}' "$0" _replace '{}'
   log "Replaced $(<"$counter_file") executables."
 
   if [ ! -e /etc/omniwarn/warning ]; then
@@ -169,8 +175,11 @@ revert_all() {
     executable_name="$(basename "$original_path")"
     original_file="$dir"/"$executable_name"
     echo "$original_file -> $original_path"
-    mv "$original_file" "$original_path"
+    mv "$original_file" "$original_path" \
+      && rm -f "$dir/original_path" \
+      && rmdir "$dir"
   done
+  rmdir /actual_executables
 }
 
 # CLI
@@ -181,7 +190,8 @@ case $cmd in
     "" | "-h" | "--help")
       print_help
       ;;
-    replace)
+    _replace)
+      # internal use only
       replace "$@"
       ;;
     replace-all)
