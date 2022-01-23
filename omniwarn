@@ -2,6 +2,9 @@
 
 self="$(basename "$0")"
 counter_file="/tmp/n_replaced_executables"
+omniwarn_root="/omniwarn"
+invariants_dir="$omniwarn_root/invariants"
+actual_executables_dir="$omniwarn_root/actual_executables"
 
 print_help() {
   cat <<HEREDOC
@@ -56,11 +59,28 @@ ensure_in_docker() {
 }
 
 
+setup_invariants() {
+  # set up dir containing programs required by this script itself which should
+  # remain available to us in un-wrapped form
+  progs="basename bash cat cp chmod chown find mkdir mktemp mv which xargs"
+  set -e
+  mkdir -p "$invariants_dir"
+  for prog in $progs; do
+    prog_path="$(which "$prog")"
+    cp -al "$prog_path" "$invariants_dir"
+  done
+}
+
+
 replace_all() {
+  setup_invariants
+  export PATH="$invariants_dir:$PATH"
+  hash -r # reset program lookup cache
+
   # disarm
   echo "disarmed while replacing executables" > /tmp/printed_warning
 
-  if [ -e "/actual_executables" ]; then
+  if [ -e ""$actual_executables_dir"" ]; then
     log "Error: Replacing executables repeatedly is not supported." 2>&1
     echo "Please first revert the current replacements using revert-all,"\
       "then try again." 2>&1
@@ -73,7 +93,7 @@ replace_all() {
         -path "/dev" -o \
         -path "/proc" -o \
         -path "/sys" -o \
-        -path "/actual_executables" \
+        -path "$omniwarn_root" \
       \) \
       -prune \
     \) \
@@ -116,29 +136,22 @@ replace() {
 
   set -e
 
-  mkdir -p /actual_executables
+  mkdir -p "$actual_executables_dir"
 
   # we'll put all executables in their own folders so we can add the folder of
   # the current program to PATH and have it remain usable from within this script
   # while it is being moved (currently only important for mv)
-  actual_dir="$(mktemp -dp /actual_executables)"
+  actual_dir="$(mktemp -dp "$actual_executables_dir")"
   actual="$actual_dir/$(basename "$1")"
   export PATH="$actual_dir":"$PATH"
 
   # put some metadata into that folder to make reverting easier
   echo -n "$1" > "$actual_dir"/original_path
 
-  # replacing bash needs special handling so the shebang of our wrapper doesn't
-  # lead to infinite recursion
-  shebang_path="/bin/bash"
-  if [ "$1" = "$shebang_path" ]; then
-    shebang_path="$actual"
-  fi
-
   # write script to tmp file for atomic replace
   tmpfile="$(mktemp)"
   cat > "$tmpfile" <<HEREDOC
-#!$shebang_path
+#!$invariants_dir/bash
 # print warning if first program execution
 if [ ! -e /tmp/printed_warning ]; then
   echo "\$(</etc/omniwarn/warning)"
@@ -170,7 +183,7 @@ HEREDOC
 
 
 revert_all() {
-  for dir in /actual_executables/*; do
+  for dir in "$actual_executables_dir"/*; do
     original_path="$(cat "$dir"/original_path)"
     executable_name="$(basename "$original_path")"
     original_file="$dir"/"$executable_name"
@@ -179,7 +192,7 @@ revert_all() {
       && rm -f "$dir/original_path" \
       && rmdir "$dir"
   done
-  rmdir /actual_executables
+  rmdir "$actual_executables_dir"
 }
 
 # CLI
