@@ -1,4 +1,4 @@
-# omniwarn.sh
+# omniwarn
 
 Tool for making all executables in a Docker image print a warning when run.
 
@@ -10,8 +10,8 @@ Everything is contained in a single script, so just download that into the
 directory with your `Dockerfile` and make it executable:
 
 ```bash
-curl -L "https://raw.githubusercontent.com/smheidrich/omniwarn/main/omniwarn.sh" -o omniwarn.sh
-chmod +x omniwarn.sh
+curl -L "https://raw.githubusercontent.com/smheidrich/omniwarn/main/omniwarn" -o omniwarn
+chmod +x omniwarn
 ```
 
 ## Usage
@@ -19,8 +19,8 @@ chmod +x omniwarn.sh
 Help text:
 
 ```
-$ ./omniwarn.sh -h
-Usage: omniwarn.sh <command> [arguments...]
+$ ./omniwarn -h
+Usage: omniwarn <command> [arguments...]
 
 Extreme hackjob to make a Docker image print warnings with (almost) any use.
 
@@ -34,8 +34,8 @@ that prints a warning, then executes the original executable.
 Example usage in Dockerfile, after writing your desired warning message into a
 file named "warning":
 
-  COPY omniwarn.sh warning ./
-  RUN ./omniwarn.sh replace-all
+  COPY omniwarn warning ./
+  RUN ./omniwarn replace-all
 
 Putting this at the end of your Dockerfile will build an image that prints your
 warning message to stderr the first time any program is launched.

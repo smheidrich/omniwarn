@@ -19,8 +19,8 @@ that prints a warning, then executes the original executable.
 Example usage in Dockerfile, after writing your desired warning message into a
 file named "warning":
 
-  COPY omniwarn.sh warning ./
-  RUN ./omniwarn.sh replace-all
+  COPY omniwarn warning ./
+  RUN ./omniwarn replace-all
 
 Putting this at the end of your Dockerfile will build an image that prints your
 warning message to stderr the first time any program is launched.
