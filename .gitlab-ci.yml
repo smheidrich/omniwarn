@@ -10,4 +10,5 @@ variables:
 test:
   stage: test
   script:
+    - apk add bash
     - ./tests/test_basic.sh
