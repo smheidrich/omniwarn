@@ -1,0 +1,13 @@
+image: docker:20
+
+services:
+  - docker:20-dind
+
+variables:
+  # required for docker-in-docker to work in gitlab.com public runners
+  DOCKER_TLS_CERTDIR: "/certs"
+
+test:
+  stage: test
+  script:
+    - ./tests/test_basic.sh
