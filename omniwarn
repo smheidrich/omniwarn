@@ -2,7 +2,7 @@
 
 self="$(basename "$0")"
 counter_file="/tmp/n_replaced_executables"
-omniwarn_root="/omniwarn"
+omniwarn_root="/.omniwarn"
 invariants_dir="$omniwarn_root/invariants"
 actual_executables_dir="$omniwarn_root/actual_executables"
 
